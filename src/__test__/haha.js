@@ -1,0 +1,1 @@
+const a = intl.t('aaa22')
