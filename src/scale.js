@@ -18,22 +18,19 @@ function writeToFile(fileName, data) {
 }
 
 function getSourceFiles({ entry, exclude }) {
-    console.log(entry)
     return entry.map(v => glob.sync(`${v}/**/*.{js,ts,tsx,jsx,vue}`, {
-        ignore: exclude || [],
+        ignore: exclude,
       })).flat();
 }
 
 function scale() {
-
-    const files = getSourceFiles({entry: config.entry.map(v => path.join(pwd, v)), exclude: config.exclude}).map(v => ({
+    const files = getSourceFiles({entry: config.entry, exclude: config.exclude}).map(v => ({
         filePath: v,
         ext: path.extname(v)
     }))
     const filei18nList = files.reduce((pre, cur) => (
         pre.concat(getAnalysis(cur))
     ), [])
-    
     writeToFile('intl.data.json', filei18nList)
 }
 

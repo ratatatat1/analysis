@@ -45,7 +45,7 @@ function translateFn(config) {
     const astTree = babel.parseSync(fileCode, transformOptions)
     traverse(astTree, {
         enter(path) {
-            path.node.type === 'StringLiteral' && /[\u4e00-\u9fa5]/.test(path.node.value) && valueList.push({path: filePath.replace(pwd, ''), value: path.node.value})
+            /[\u4e00-\u9fa5]/.test(path.node.value) && valueList.push({value: path.node.value.replace(/[\n| ]/g, ''), path: filePath})
             // path.node.type === 'StringLiteral' && ((path.parent.callee || {}).property || {}).name === 't' && valueList.push(path.node.value)
         }
     })
