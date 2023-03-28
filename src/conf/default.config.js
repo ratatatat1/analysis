@@ -1,5 +1,5 @@
 const defaultConfig = {
-    entry: ['src'],
+    entry: ['src/aaa'],
     exclude: [],
     nesting: [],
 }

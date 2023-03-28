@@ -32,5 +32,8 @@
     "commander": "^8.2.0",
     "glob": "^7.1.7",
     "md5": "^2.3.0"
+  },
+  "devDependencies": {
+    "prettier": "^2.8.7"
   }
 }
