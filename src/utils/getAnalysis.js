@@ -19,6 +19,21 @@ const presetTypescript = require('@babel/preset-typescript');
 const requireMessage = `import { intlMessage } from '@/renderer/hocComponent/intlMessage'`
 const log = require('./log')
 
+function fnReplace(value) {
+    return t.callExpression(
+        t.memberExpression(
+          t.identifier('intlMessage'),
+          t.identifier('t')
+        ),
+        [Object.assign(t.StringLiteral(value), {
+            extra: {
+              raw: `'${value}'`,
+              rawValue: value,
+            },
+          })]
+      )
+}
+
 function translateFn(config) {
     try {
         const { filePath, ext } = config
@@ -67,22 +82,16 @@ function translateFn(config) {
                         if(t.isJSXText(path.node)) {
                             path.node.value = (`{intlMessage.t('${path.node.value.trim()}')}`)
                         }else {
-                            path.replaceWith(t.callExpression(
-                                t.memberExpression(
-                                  t.identifier('intlMessage'),
-                                  t.identifier('t')
-                                ),
-                                [Object.assign(t.StringLiteral(path.node.value), {
-                                    extra: {
-                                      raw: `'${path.node.value}'`,
-                                      rawValue: path.node.value,
-                                    },
-                                  })]
-                              ))
-                              path.skip();
-
+                            if(t.isJSXAttribute(path.parent)) {
+                                // path.node.value = (`{intlMessage.t('${path.node.value.trim()}')}`)
+                                const value = path.node.value
+                                path.replaceWith(t.JSXExpressionContainer(fnReplace(value)))
+                            }else {
+                                path.replaceWith(fnReplace(path.node.value))
+                            }
                         }
                     }
+                    path.skip();
                 }
             },
         })
