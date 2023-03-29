@@ -7,10 +7,17 @@ program
 
 program
     .command('scale-file')
-    .alias('scale')
+    .alias('cover')
     .description('scale intl from code')
     .action(function (option){
-        scale()
+        scale({type: 'cover'})
+    })
+program
+    .command('scale-file')
+    .alias('scan')
+    .description('scale intl from code')
+    .action(function (option){
+        scale({type: 'scan'})
     })
 
 program.parse(process.argv)

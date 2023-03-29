@@ -36,7 +36,7 @@ function fnReplace(value) {
 
 function translateFn(config) {
     try {
-        const { filePath, ext } = config
+        const { filePath, ext, type } = config
         const fileCode = fs.readFileSync(filePath, 'utf8')
         let presets = []
         let valueList = []
@@ -95,7 +95,7 @@ function translateFn(config) {
                 }
             },
         })
-        if(valueList.length) {
+        if(valueList.length && type === 'cover') {
             let { code } = generate(astTree, { retainLines: false, decoratorsBeforeExport: true, jsescOption: {minimal: true} }, fileCode);
             if(!hasImport) {
                 code = `${requireMessage}\n${code}`

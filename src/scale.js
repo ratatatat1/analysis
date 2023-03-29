@@ -23,7 +23,7 @@ function getSourceFiles({ entry, exclude }) {
       })).flat();
 }
 
-function scale() {
+function scale(option) {
     const files = getSourceFiles({entry: config.entry, exclude: config.exclude}).map(v => ({
         filePath: v,
         ext: path.extname(v)
@@ -32,7 +32,7 @@ function scale() {
     const defaultDataList = fileDataList.map(v => JSON.parse(fs.readFileSync(path.join(pwd, config.dataPath, v).toString('utf-8'))))
     const dataSet = new Set(Object.keys(defaultDataList[0]))
     const filei18nList = files.reduce((pre, cur) => (
-        pre.concat(getAnalysis(cur))
+        pre.concat(getAnalysis(Object.assign({}, cur, option)))
     ), [])
     fileDataList.forEach((v, i) => {
         const cur = defaultDataList[i]
