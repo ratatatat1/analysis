@@ -28,10 +28,21 @@ function scale() {
         filePath: v,
         ext: path.extname(v)
     }))
+    const fileDataList = fs.readdirSync(config.dataPath)
+    const defaultDataList = fileDataList.map(v => JSON.parse(fs.readFileSync(path.join(pwd, config.dataPath, v).toString('utf-8'))))
+    const dataSet = new Set(Object.keys(defaultDataList[0]))
     const filei18nList = files.reduce((pre, cur) => (
         pre.concat(getAnalysis(cur))
     ), [])
-    writeToFile('intl.data.json', filei18nList)
+    fileDataList.forEach((v, i) => {
+        const cur = defaultDataList[i]
+        filei18nList.forEach(val => {
+            if(!dataSet.has(val)) {
+                cur[val] = val
+            }
+        })
+        writeToFile(path.join(pwd, config.dataPath, v), cur)
+    })
 }
 
 module.exports = scale

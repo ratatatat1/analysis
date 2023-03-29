@@ -57,9 +57,8 @@ function translateFn(config) {
         traverse(astTree, {
             enter(path) {
                 if(t.isImportDeclaration(path.node)) {
-                    // console.log(path.node, 999)
                     if(/intlMessage/.test(path.node.source.value)) {
-                        hasImport === true
+                        hasImport = true
                     }
                 }
                 if(/[\u4e00-\u9fa5]/.test(path.node.value)) { 
