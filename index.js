@@ -7,7 +7,7 @@ program
     .version(option.version, '-v, --version')
 
 program
-    .command('scan-i18n-file')
+    .command('scan-i18n')
     .alias('scan-i18n')
     .argument('[type]', 'scan | cover', 'scan')
     .description('scan intl from code')

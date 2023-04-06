@@ -1,5 +1,4 @@
 const fs = require('fs')
-const pwd = process.cwd()
 // const path = require('path')
 const babel = require('@babel/core');
 const traverse = require('@babel/traverse').default;
@@ -16,7 +15,8 @@ const pluginSyntaxDynamicImport = require('@babel/plugin-syntax-dynamic-import')
 const pluginSyntaxExportExtensions = require('@babel/plugin-syntax-export-extensions');
 const pluginSyntaxFunctionBind = require('@babel/plugin-syntax-function-bind');
 const presetTypescript = require('@babel/preset-typescript');
-const requireMessage = `import { intlMessage } from '@/renderer/hocComponent/intlMessage'`
+const config = require('../conf/default.config')
+const requireMessage = config.requireMessage;
 const log = require('./log')
 
 function fnReplace(value) {
@@ -95,7 +95,7 @@ function translateFn(config) {
                 }
             },
         })
-        if(valueList.length && type === 'cover') {
+        if(valueList.length && type === 'cover' && requireMessage) {
             let { code } = generate(astTree, { retainLines: false, decoratorsBeforeExport: true, jsescOption: {minimal: true} }, fileCode);
             if(!hasImport) {
                 code = `${requireMessage}\n${code}`
