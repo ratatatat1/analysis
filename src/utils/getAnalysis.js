@@ -36,7 +36,7 @@ function fnReplace(value) {
 
 function translateFn(config) {
     try {
-        const { filePath, ext, type } = config
+        const { filePath, ext, type, excludeFunctionSet } = config
         const fileCode = fs.readFileSync(filePath, 'utf8')
         let presets = []
         let valueList = []
@@ -77,8 +77,8 @@ function translateFn(config) {
                     }
                 }
                 if(/[\u4e00-\u9fa5]/.test(path.node.value)) { 
-                    valueList.push(path.node.value.replace(/[\n| ]/g, ''))
-                    if(((path.parent.callee || {}).property || {}).name !== 't') {
+                    if(!excludeFunctionSet.has(((path.parent.callee || {}).property || {}).name) && !excludeFunctionSet.has(((path.parent.callee || {}).name))) {
+                        valueList.push(path.node.value.replace(/[\n| ]/g, ''))
                         if(t.isJSXText(path.node)) {
                             path.node.value = (`{intlMessage.t('${path.node.value.trim()}')}`)
                         }else {

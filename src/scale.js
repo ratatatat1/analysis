@@ -31,8 +31,9 @@ function scale(option) {
     const fileDataList = fs.readdirSync(config.dataPath)
     const defaultDataList = fileDataList.map(v => JSON.parse(fs.readFileSync(path.join(pwd, config.dataPath, v).toString('utf-8'))))
     const dataSet = new Set(Object.keys(defaultDataList[0]))
+    const excludeFunctionSet = new Set([...config.excludeFunction, 't'])
     const filei18nList = files.reduce((pre, cur) => (
-        pre.concat(getAnalysis(Object.assign({}, cur, option)))
+        pre.concat(getAnalysis(Object.assign({}, cur, option, {excludeFunctionSet})))
     ), [])
     fileDataList.forEach((v, i) => {
         const cur = defaultDataList[i]
