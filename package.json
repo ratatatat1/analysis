@@ -9,6 +9,14 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ratatatat1/analysis.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ratatatat1/analysis/issues"
+  },
+  "homepage": "https://github.com/ratatatat1/analysis.git",
   "author": "ratat",
   "license": "ISC",
   "dependencies": {
