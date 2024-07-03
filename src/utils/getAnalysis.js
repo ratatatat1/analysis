@@ -78,7 +78,11 @@ function translateFn(config) {
                 }
                 if(/[\u4e00-\u9fa5]/.test(path.node.value)) { 
                     if(!excludeFunctionSet.has(((path.parent.callee || {}).property || {}).name) && !excludeFunctionSet.has(((path.parent.callee || {}).name))) {
-                        valueList.push(path.node.value.replace(/[\n| ]/g, ''))
+                        if(path.node.type === 'JSXText') {
+                            valueList.push(path.node.value.replace(/[\n| ]/g, ''))
+                        }else {
+                            valueList.push(path.node.value.replace(/[\n]/g, ''))
+                        }
                         if(t.isJSXText(path.node)) {
                             path.node.value = (`{intlMessage.t('${path.node.value.trim()}')}`)
                         }else {
