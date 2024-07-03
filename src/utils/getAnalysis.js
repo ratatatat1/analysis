@@ -90,7 +90,7 @@ function translateFn(config) {
                                 // path.node.value = (`{intlMessage.t('${path.node.value.trim()}')}`)
                                 const value = path.node.value
                                 path.replaceWith(t.JSXExpressionContainer(fnReplace(value)))
-                            }else {
+                            }else if(!path.isCallExpression) {
                                 path.replaceWith(fnReplace(path.node.value))
                             }
                         }
