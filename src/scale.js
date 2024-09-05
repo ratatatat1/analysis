@@ -23,7 +23,7 @@ function getSourceFiles({ entry, exclude }) {
       })).flat();
 }
 
-function scale(option) {
+async function scale(option) {
     const files = getSourceFiles({entry: config.entry, exclude: config.exclude}).map(v => ({
         filePath: v,
         ext: path.extname(v)
@@ -31,10 +31,8 @@ function scale(option) {
     const fileDataList = fs.readdirSync(config.dataPath)
     const defaultDataList = fileDataList.map(v => JSON.parse(fs.readFileSync(path.join(pwd, config.dataPath, v).toString('utf-8'))))
     const dataSet = new Set(Object.keys(defaultDataList[0]))
-    const excludeFunctionSet = new Set([...config.excludeFunction, 't'])
-    const filei18nList = files.reduce((pre, cur) => (
-        pre.concat(getAnalysis(Object.assign({}, cur, option, {excludeFunctionSet})))
-    ), [])
+    const excludeFunctionSet = new Set([...config.excludeFunction, [config.i18nCallStack[config.i18nCallStack.length - 1]]].flat())
+    const filei18nList = await files.reduce(async (pre, cur) => (await pre).concat(await getAnalysis(Object.assign({}, cur, option, {excludeFunctionSet}))), [])
     fileDataList.forEach((v, i) => {
         const cur = defaultDataList[i]
         filei18nList.forEach(val => {

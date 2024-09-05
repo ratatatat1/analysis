@@ -1,6 +1,7 @@
 const fs = require('fs')
 const pwd = process.cwd()
-// const path = require('path')
+const path = require('path')
+const analysisConfig = require('./config')
 const babel = require('@babel/core');
 const traverse = require('@babel/traverse').default;
 const generate = require('@babel/generator').default;
@@ -16,14 +17,23 @@ const pluginSyntaxDynamicImport = require('@babel/plugin-syntax-dynamic-import')
 const pluginSyntaxExportExtensions = require('@babel/plugin-syntax-export-extensions');
 const pluginSyntaxFunctionBind = require('@babel/plugin-syntax-function-bind');
 const presetTypescript = require('@babel/preset-typescript');
-const requireMessage = `import { intlMessage } from '@/renderer/hocComponent/intlMessage'`
+const JSON5 = require('json5');
 const log = require('./log')
+
+const { i18nCallStack, importMessage = '' } = analysisConfig
+const importReg = new RegExp(i18nCallStack[0])
+
+const { ESLint } = require("eslint");
+const eslint = new ESLint({   
+    // overrideConfigFile: true,
+    overrideConfig: JSON5.parse(fs.readFileSync(path.join(pwd, './.eslintrc.json'))),
+    fix: true });
 
 function fnReplace(value) {
     return t.callExpression(
         t.memberExpression(
-          t.identifier('intlMessage'),
-          t.identifier('t')
+          t.identifier(i18nCallStack[0]),
+          t.identifier(i18nCallStack[1])
         ),
         [Object.assign(t.StringLiteral(value), {
             extra: {
@@ -34,7 +44,7 @@ function fnReplace(value) {
       )
 }
 
-function translateFn(config) {
+async function translateFn(config) {
     try {
         const { filePath, ext, type, excludeFunctionSet } = config
         const fileCode = fs.readFileSync(filePath, 'utf8')
@@ -69,10 +79,11 @@ function translateFn(config) {
         };
         const astTree = babel.parseSync(fileCode, transformOptions)
         let hasImport = false
+        let needReplace = false
         traverse(astTree, {
             enter(path) {
                 if(t.isImportDeclaration(path.node)) {
-                    if(/intlMessage/.test(path.node.source.value)) {
+                    if(!hasImport && importReg.test(path.node.source.value)) {
                         hasImport = true
                     }
                 }
@@ -84,13 +95,15 @@ function translateFn(config) {
                             valueList.push(path.node.value.replace(/[\n]/g, ''))
                         }
                         if(t.isJSXText(path.node)) {
-                            path.node.value = (`{intlMessage.t('${path.node.value.trim()}')}`)
+                            path.node.value = (`{${i18nCallStack.join('.')}('${path.node.value.trim()}')}`)
+                            needReplace = true
                         }else {
                             if(t.isJSXAttribute(path.parent)) {
-                                // path.node.value = (`{intlMessage.t('${path.node.value.trim()}')}`)
                                 const value = path.node.value
+                                needReplace = true
                                 path.replaceWith(t.JSXExpressionContainer(fnReplace(value)))
                             }else if(!path.isCallExpression) {
+                                needReplace = true
                                 path.replaceWith(fnReplace(path.node.value))
                             }
                         }
@@ -99,24 +112,33 @@ function translateFn(config) {
                 }
             },
         })
-        if(valueList.length && type === 'cover') {
-            let { code } = generate(astTree, { retainLines: false, decoratorsBeforeExport: true, jsescOption: {minimal: true} }, fileCode);
-            if(!hasImport) {
-                code = `${requireMessage}\n${code}`
+
+        if(needReplace && valueList.length && type === 'cover') {
+            let { code } = generate(astTree, {  retainLines: true,  // 尽可能保留原始代码的行号
+                compact: false,     // 不生成紧凑代码
+                concise: false,     // 不生成简洁代码
+                minified: false,    // 不生成最小化代码
+                comments: true,      // 保留注释
+                sourceFileName: filePath
+              });
+            if(importMessage && !hasImport) {
+                code = `${importMessage}\n${code}`
             }
-            fs.writeFileSync(filePath, `${code}\n`)
+            const results = await eslint.lintText(code, {filePath});
+            await ESLint.outputFixes(results)
         }
         return valueList
 
     } catch (error) {
+        log.error(error)
         log.error(config.filePath)
         return []
     }
 
 }
 
-const getAnalysis = function(config) {
-    const fileInfo = translateFn(config)
+const getAnalysis = async function(config) {
+    const fileInfo = await translateFn(config)
     return fileInfo
 }
 
