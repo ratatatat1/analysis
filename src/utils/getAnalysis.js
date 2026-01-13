@@ -29,6 +29,49 @@ const eslint = new ESLint({
     overrideConfig: JSON5.parse(fs.readFileSync(path.join(pwd, './.eslintrc.json'))),
     fix: true });
 
+function getCalleeName(callee) {
+    if (!callee) return null
+    if (callee.type === 'Identifier') return callee.name
+    if (callee.type === 'MemberExpression' || callee.type === 'OptionalMemberExpression') {
+        const prop = callee.property
+        if (prop && prop.type === 'Identifier') return prop.name
+        if (prop && prop.type === 'StringLiteral') return prop.value
+    }
+    return null
+}
+
+function isInExcludedInvocation(path, excludeFunctionSet) {
+    let currentPath = path
+    while (currentPath) {
+        const invocationPath = currentPath.findParent(
+            (p) => p.isCallExpression() || p.isNewExpression() || p.node.type === 'OptionalCallExpression'
+        )
+        if (!invocationPath) return false
+        const calleeName = getCalleeName(invocationPath.node.callee)
+        if (calleeName && excludeFunctionSet.has(calleeName)) return true
+        currentPath = invocationPath.parentPath
+    }
+    return false
+}
+
+function isI18nCallee(callee, i18nCallStack) {
+    if (!callee) return false
+    if (callee.type !== 'MemberExpression' && callee.type !== 'OptionalMemberExpression') return false
+    const obj = callee.object
+    const prop = callee.property
+    if (!obj || !prop) return false
+    return obj.type === 'Identifier' &&
+        obj.name === i18nCallStack[0] &&
+        prop.type === 'Identifier' &&
+        prop.name === i18nCallStack[1]
+}
+
+function isInI18nCall(path, i18nCallStack) {
+    const callPath = path.findParent((p) => p.isCallExpression() || p.node.type === 'OptionalCallExpression')
+    if (!callPath) return false
+    return isI18nCallee(callPath.node.callee, i18nCallStack)
+}
+
 function fnReplace(value) {
     return t.callExpression(
         t.memberExpression(
@@ -88,23 +131,36 @@ async function translateFn(config) {
                     }
                 }
                 if(/[\u4e00-\u9fa5]/.test(path.node.value)) { 
-                    if(!excludeFunctionSet.has(((path.parent.callee || {}).property || {}).name) && !excludeFunctionSet.has(((path.parent.callee || {}).name))) {
+                    if(!isInExcludedInvocation(path, excludeFunctionSet)) {
+                        if(isInI18nCall(path, i18nCallStack)) {
+                            path.skip();
+                            return
+                        }
                         if(path.node.type === 'JSXText') {
                             valueList.push(path.node.value.replace(/[\n| ]/g, ''))
                         }else {
                             valueList.push(path.node.value.replace(/[\n]/g, ''))
                         }
                         if(t.isJSXText(path.node)) {
-                            path.node.value = (`{${i18nCallStack.join('.')}('${path.node.value.trim()}')}`)
-                            needReplace = true
+                            const value = path.node.value.trim()
+                            if (value) {
+                                needReplace = true
+                                path.replaceWith(t.JSXExpressionContainer(fnReplace(value)))
+                            }
                         }else {
                             if(t.isJSXAttribute(path.parent)) {
                                 const value = path.node.value
                                 needReplace = true
                                 path.replaceWith(t.JSXExpressionContainer(fnReplace(value)))
-                            }else if(!path.isCallExpression) {
-                                needReplace = true
-                                path.replaceWith(fnReplace(path.node.value))
+                            }else {
+                                const isObjectKey =
+                                    t.isObjectProperty(path.parent) &&
+                                    path.parentKey === 'key' &&
+                                    path.parent.computed !== true
+                                if (!isObjectKey) {
+                                    needReplace = true
+                                    path.replaceWith(fnReplace(path.node.value))
+                                }
                             }
                         }
                     }
