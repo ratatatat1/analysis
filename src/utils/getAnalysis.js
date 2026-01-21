@@ -40,15 +40,34 @@ function getCalleeName(callee) {
     return null
 }
 
-function isInExcludedInvocation(path, excludeFunctionSet) {
+function getCalleeQualifiedName(callee) {
+    if (!callee) return null
+    if (callee.type === 'Identifier') return callee.name
+    if (callee.type !== 'MemberExpression' && callee.type !== 'OptionalMemberExpression') return null
+    const obj = callee.object
+    const propName = getCalleeName(callee)
+    if (!propName) return null
+    const objName = getCalleeQualifiedName(obj)
+    if (!objName) return null
+    return `${objName}.${propName}`
+}
+
+function isInInvocationSet(invocationPath, functionSet) {
+    if (!invocationPath || !invocationPath.node) return false
+    const calleeName = getCalleeName(invocationPath.node.callee)
+    const calleeQualifiedName = getCalleeQualifiedName(invocationPath.node.callee)
+    return (calleeQualifiedName && functionSet.has(calleeQualifiedName)) || (calleeName && functionSet.has(calleeName))
+}
+
+function isInExcludedInvocation(path, excludeFunctionSet, includeFunctionSet) {
     let currentPath = path
     while (currentPath) {
         const invocationPath = currentPath.findParent(
             (p) => p.isCallExpression() || p.isNewExpression() || p.node.type === 'OptionalCallExpression'
         )
         if (!invocationPath) return false
-        const calleeName = getCalleeName(invocationPath.node.callee)
-        if (calleeName && excludeFunctionSet.has(calleeName)) return true
+        if (includeFunctionSet && includeFunctionSet.size && isInInvocationSet(invocationPath, includeFunctionSet)) return false
+        if (excludeFunctionSet && excludeFunctionSet.size && isInInvocationSet(invocationPath, excludeFunctionSet)) return true
         currentPath = invocationPath.parentPath
     }
     return false
@@ -122,7 +141,7 @@ function replaceTemplateElement(templateElementPath, value) {
 
 async function translateFn(config) {
     try {
-        const { filePath, ext, type, excludeFunctionSet } = config
+        const { filePath, ext, type, excludeFunctionSet, includeFunctionSet } = config
         const fileCode = fs.readFileSync(filePath, 'utf8')
         let presets = []
         let valueList = []
@@ -174,7 +193,7 @@ async function translateFn(config) {
                         path.skip();
                         return
                     }
-                    if(!isInExcludedInvocation(path, excludeFunctionSet)) {
+                    if(!isInExcludedInvocation(path, excludeFunctionSet, includeFunctionSet)) {
                         if(path.node.type === 'JSXText') {
                             valueList.push(path.node.value.replace(/[\n| ]/g, ''))
                         }else {

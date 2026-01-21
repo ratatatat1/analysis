@@ -56,8 +56,12 @@ module.exports = {
   i18nCallStack: ["intl", "t"],
 
   // 处于这些调用内部的中文不会被处理（既不替换，也不写入语言包）
-  // 注意：匹配的是“被调用的方法名”，例如 console.log(...) 的方法名是 log
+  // 支持写方法名（如 "log" / "error"）或写“对象.方法”（如 "sendRenderLog.error" / "message.error"）
   excludeFunction: ["formatMessage", "log"],
+
+  // 白名单放行，优先级高于 excludeFunction
+  // 例如：excludeFunction: ["error"] 但仍希望处理 message.error(...) 里的中文
+  includeFunction: ["message.error"],
 };
 ```
 
@@ -134,4 +138,3 @@ const title = intl.t("帕金森病磁刺激治疗系统");
 - 语言包的“基准 key 集合”取自 `dataPath` 目录里读到的**第一个 JSON 文件**；如果你的语言包之间 key 集合不一致，可能出现意外覆盖，建议先统一 key。
 - `.vue` 文件会被纳入扫描文件列表，但工具会把整文件当作 JS/TS 解析；典型 Vue SFC（带 `<template>`）可能解析失败。
 - `src/conf/default.config.js` 里有 `nesting` 字段，但当前版本未在扫描/覆盖流程中使用。
-

@@ -3,6 +3,7 @@ const defaultConfig = {
     exclude: [],
     nesting: [],
     excludeFunction: [],
+    includeFunction: [],
     i18nCallStack: ['intl', 't']
 }
 
