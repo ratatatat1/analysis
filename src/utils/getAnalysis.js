@@ -87,6 +87,39 @@ function fnReplace(value) {
       )
 }
 
+function getNodeText(node) {
+    if (!node) return null
+    if (typeof node.value === 'string') return node.value
+    if (t.isTemplateElement(node) && node.value) return node.value.cooked ?? node.value.raw
+    return null
+}
+
+function replaceTemplateElement(templateElementPath, value) {
+    const templateLiteralPath = templateElementPath.parentPath
+    if (!templateLiteralPath || !templateLiteralPath.isTemplateLiteral()) return false
+    const quasiIndex = templateElementPath.key
+    if (typeof quasiIndex !== 'number') return false
+
+    const normalized = value.replace(/[\n]/g, '')
+    if (!normalized.trim()) return false
+
+    const templateLiteralNode = templateLiteralPath.node
+    const targetQuasi = templateLiteralNode.quasis[quasiIndex]
+    if (!targetQuasi || !t.isTemplateElement(targetQuasi)) return false
+
+    targetQuasi.value.raw = ''
+    targetQuasi.value.cooked = ''
+
+    templateLiteralNode.expressions.splice(quasiIndex, 0, fnReplace(normalized))
+    templateLiteralNode.quasis.splice(quasiIndex + 1, 0, t.templateElement({ raw: '', cooked: '' }, false))
+    templateLiteralNode.quasis.forEach((q, i) => {
+        q.tail = i === templateLiteralNode.quasis.length - 1
+    })
+
+    templateLiteralPath.skip()
+    return true
+}
+
 async function translateFn(config) {
     try {
         const { filePath, ext, type, excludeFunctionSet } = config
@@ -130,22 +163,33 @@ async function translateFn(config) {
                         hasImport = true
                     }
                 }
-                if(/[\u4e00-\u9fa5]/.test(path.node.value)) { 
-                    if(!isInExcludedInvocation(path, excludeFunctionSet)) {
-                        if(isInI18nCall(path, i18nCallStack)) {
-                            path.skip();
-                            return
-                        }
+                const nodeText = getNodeText(path.node)
+                if(nodeText && /[\u4e00-\u9fa5]/.test(nodeText)) { 
+                    if(isInI18nCall(path, i18nCallStack)) {
                         if(path.node.type === 'JSXText') {
                             valueList.push(path.node.value.replace(/[\n| ]/g, ''))
                         }else {
-                            valueList.push(path.node.value.replace(/[\n]/g, ''))
+                            valueList.push(nodeText.replace(/[\n]/g, ''))
+                        }
+                        path.skip();
+                        return
+                    }
+                    if(!isInExcludedInvocation(path, excludeFunctionSet)) {
+                        if(path.node.type === 'JSXText') {
+                            valueList.push(path.node.value.replace(/[\n| ]/g, ''))
+                        }else {
+                            valueList.push(nodeText.replace(/[\n]/g, ''))
                         }
                         if(t.isJSXText(path.node)) {
                             const value = path.node.value.trim()
                             if (value) {
                                 needReplace = true
                                 path.replaceWith(t.JSXExpressionContainer(fnReplace(value)))
+                            }
+                        }else if (t.isTemplateElement(path.node)) {
+                            if (type === 'cover') {
+                                const replaced = replaceTemplateElement(path, nodeText)
+                                if (replaced) needReplace = true
                             }
                         }else {
                             if(t.isJSXAttribute(path.parent)) {
@@ -181,7 +225,8 @@ async function translateFn(config) {
                 code = `${importMessage}\n${code}`
             }
             const results = await eslint.lintText(code, {filePath});
-            await ESLint.outputFixes(results)
+            const fixedCode = results?.find(r => r.filePath === filePath)?.output
+            fs.writeFileSync(filePath, (typeof fixedCode === 'string' && fixedCode) ? fixedCode : code, 'utf8')
         }
         return valueList
 
